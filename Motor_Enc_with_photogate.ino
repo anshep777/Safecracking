@@ -24,15 +24,6 @@ int gatestate;
 int mspeed = 255; // motor speed (set to 255 in case no EEPROM value is selected)
 //int eepMotor = 0; // Initial EEPROM address variable for the motor speed
 
-void userMenu(){
-  Serial.println("Input Dial Position: d ");
-  Serial.println("Stop Motor: x ");
-  Serial.println("Go Home: h ");
-  Serial.println("Set Home Location: s ");
-  Serial.println("Select Motor Speed Value: m");
-  Serial.println(" ");
-}
-
 void userSettings(){
     // enters motor speed values into the EEPROM
   int initMotorSpeed = 50; // starts at 50, each entry increases the motor speed by 51/255; making 4 values to choose from
@@ -43,13 +34,6 @@ void userSettings(){
 }
 
 void setup() {
-  //userMenu();
-  Serial.println("Input Dial Position: d ");
-  Serial.println("Stop Motor: x ");
-  Serial.println("Go Home: h ");
-  Serial.println("Set Home Location: s ");
-  Serial.println("Select Motor Speed Value: m");
-  Serial.println(" ");
   while(!Serial);
   Serial.begin(9600);
   pinMode(button, INPUT);
@@ -67,52 +51,9 @@ void setup() {
 
 void loop() {
   gate = digitalRead(11);
-  if(Serial.available()){
-    int incoming = Serial.read();
-    Serial.print("You Pressed: ");
-    Serial.write(incoming);
-    Serial.println();
-
-    if(incoming == 'd'){ // put in a dial position
-      Serial.println("Type the dial position to go to");
-      while(Serial.available() == false); // wait for user input for dial position
-      dialPos = Serial.parseInt();
-
-      Serial.print("Dial position: ");
-      Serial.println(dialPos);
-      realPos = dialPos * 84;
-    }
-    else if(incoming == 'h'){ // go to home location
-      Serial.println("Going Home");
-      goHome;
-    }
-    else if(incoming == 's'){ // set the home location
-      Serial.println("Setting Home Location");
-//      while(Serial.available() == false); // wait for user input for dial position
-//      homePos = Serial.parseInt();
-      setHome();
-    }
-    else if(incoming == 'm'){ // select motor speed from the EEPROM
-      Serial.println("Enter EEPROM address to select motor speed: ");
-      Serial.println("EEPROM Address Values");
-      Serial.println("Address 0 = 50");
-      Serial.println("Address 2 = 101");
-      Serial.println("Address 4 = 152");
-      Serial.println("Address 6 = 203");
-      Serial.println("Address 8 = 254");
-      while(Serial.available() == false); // wait for user input
-      int incoming = Serial.parseInt();
-      if(incoming %2 == 0 && incoming < 9){
-        Serial.print("Motor speed set to: ");
-        EEPROM.get(incoming, mspeed);
-        Serial.println(mspeed);
-      }
-      else{
-        Serial.println("Incorrect input, even numbers 0 - 8 only");
-      }
-    }
-    goToPosition();
-  }
+  userMenu();
+  goToPosition();
+  delay(100);
 }
 
 void intCountA(){ 
@@ -258,3 +199,57 @@ void stopMotor(){
     digitalWrite(motor1, LOW);
 }
 
+void userMenu(){
+  Serial.println("Input Dial Position: d ");
+  Serial.println("Stop Motor: x ");
+  Serial.println("Go Home: h ");
+  Serial.println("Set Home Location: s ");
+  Serial.println("Select Motor Speed Value: m");
+  Serial.println(" ");
+  while (!Serial.available()) delay(100);
+  if(Serial.available()){
+    int incoming = Serial.read();
+    Serial.print("You Pressed: ");
+    Serial.write(incoming);
+    Serial.println();
+
+    if(incoming == 'd'){ // put in a dial position
+      Serial.println("Type the dial position to go to");
+      while(Serial.available() == false); // wait for user input for dial position
+      dialPos = Serial.parseInt();
+
+      Serial.print("Dial position: ");
+      Serial.println(dialPos);
+      realPos = dialPos * 84;
+    }
+    else if(incoming == 'h'){ // go to home location
+      Serial.println("Going Home");
+      goHome();
+    }
+    else if(incoming == 's'){ // set the home location
+      Serial.println("Setting Home Location");
+//      while(Serial.available() == false); // wait for user input for dial position
+//      homePos = Serial.parseInt();
+      setHome();
+    }
+    else if(incoming == 'm'){ // select motor speed from the EEPROM
+      Serial.println("Enter EEPROM address to select motor speed: ");
+      Serial.println("EEPROM Address Values");
+      Serial.println("Address 0 = 50");
+      Serial.println("Address 2 = 101");
+      Serial.println("Address 4 = 152");
+      Serial.println("Address 6 = 203");
+      Serial.println("Address 8 = 254");
+      while(Serial.available() == false); // wait for user input
+      int incoming = Serial.parseInt();
+      if(incoming %2 == 0 && incoming < 9){
+        Serial.print("Motor speed set to: ");
+        EEPROM.get(incoming, mspeed);
+        Serial.println(mspeed);
+      }
+      else{
+        Serial.println("Incorrect input, even numbers 0 - 8 only");
+      }
+    }
+   Serial.println(" ");
+}}
