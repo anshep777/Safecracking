@@ -18,20 +18,40 @@ int dir = 6; // direction indicator (forward/CW = HIGH reverse/CCW = LOW)
 int turnTo;
 int dialPos;
 int homePos;
+int realPos;
 int gate;
 int gatestate;
 int mspeed = 255; // motor speed (set to 255 in case no EEPROM value is selected)
-int eepMotor = 0; // Initial EEPROM address variable for the motor speed
+//int eepMotor = 0; // Initial EEPROM address variable for the motor speed
 
-void setup() {
-  while(!Serial);
-  Serial.begin(9600);
+void userMenu(){
   Serial.println("Input Dial Position: d ");
   Serial.println("Stop Motor: x ");
   Serial.println("Go Home: h ");
   Serial.println("Set Home Location: s ");
   Serial.println("Select Motor Speed Value: m");
   Serial.println(" ");
+}
+
+void userSettings(){
+    // enters motor speed values into the EEPROM
+  int initMotorSpeed = 50; // starts at 50, each entry increases the motor speed by 51/255; making 4 values to choose from
+  for(int loc = 0; loc < 9; loc += 2){ // two bytes of memory allocated to each int
+    EEPROM.put(loc, initMotorSpeed);
+    initMotorSpeed += 51;
+  }
+}
+
+void setup() {
+  //userMenu();
+  Serial.println("Input Dial Position: d ");
+  Serial.println("Stop Motor: x ");
+  Serial.println("Go Home: h ");
+  Serial.println("Set Home Location: s ");
+  Serial.println("Select Motor Speed Value: m");
+  Serial.println(" ");
+  while(!Serial);
+  Serial.begin(9600);
   pinMode(button, INPUT);
   pinMode(encA, INPUT);
   pinMode(encB, INPUT);
@@ -42,13 +62,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encA), intCountA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encB), intCountB, CHANGE); 
 
-  // enters motor speed values into the EEPROM
-  for(int i = 0; i <= 5; i++){ // address
-    for(float ee = 20; ee <= 255; ee = ee + 51){ // each entry increases the motor speed by 51/255
-      EEPROM.put(i, ee);
-      mspeed = ee;
-    }
-  }
+  userSettings();
 }
 
 void loop() {
@@ -66,6 +80,7 @@ void loop() {
 
       Serial.print("Dial position: ");
       Serial.println(dialPos);
+      realPos = dialPos * 84;
     }
     else if(incoming == 'h'){ // go to home location
       Serial.println("Going Home");
@@ -79,13 +94,22 @@ void loop() {
     }
     else if(incoming == 'm'){ // select motor speed from the EEPROM
       Serial.println("Enter EEPROM address to select motor speed: ");
+      Serial.println("EEPROM Address Values");
+      Serial.println("Address 0 = 50");
+      Serial.println("Address 2 = 101");
+      Serial.println("Address 4 = 152");
+      Serial.println("Address 6 = 203");
+      Serial.println("Address 8 = 254");
       while(Serial.available() == false); // wait for user input
-      int incoming = Serial.read();
-      Serial.print("Motor speed set to: ");
-      EEPROM.get(eepMotor, mspeed);
-      Serial.println(mspeed);
-//        Serial.println(EEPROM.read(eepMotor));
-//        mspeed = EEPROM.read(eepMotor);
+      int incoming = Serial.parseInt();
+      if(incoming %2 == 0 && incoming < 9){
+        Serial.print("Motor speed set to: ");
+        EEPROM.get(incoming, mspeed);
+        Serial.println(mspeed);
+      }
+      else{
+        Serial.println("Incorrect input, even numbers 0 - 8 only");
+      }
     }
     goToPosition();
   }
@@ -142,28 +166,28 @@ void intCountB(){
 }
 
 void goToPosition(){ // walks the motor to a position then stops it
-  if((dialPos * 84) > count){ // if a higher than encoder value input, turn CW
+  if(realPos > count){ // if a higher than encoder value input, turn CW
     CWMotor();
     digitalWrite(6, HIGH);
-//    while(dialPos * 84 > count){
+    while(realPos > count){
 //      Serial.print("dial position * 84: ");
 //      Serial.println(dialPos * 84);
 //      Serial.print("count: ");
 //      Serial.println(count);
-//      slowDown();
-//    }
+      slowDown();
+    }
     stopMotor();
   }
-  if((dialPos * 84) < count){ // if a lower than encoder value input turn CCW
+  if(realPos < count){ // if a lower than encoder value input turn CCW
     CCWMotor();
     digitalWrite(6, LOW);
-//    while(dialPos * 84 < count){
+    while(dialPos * 84 < count){
 //      Serial.print("dial position * 84: ");
 //      Serial.println(dialPos * 84);
 //      Serial.print("count: ");
 //      Serial.println(count);
-//      slowDown();
-//    }
+      slowDown();
+    }
     stopMotor();
   }
 }
@@ -196,24 +220,24 @@ void setHome(){
 
 void slowDown(){
   // slow down by 70 if within 30 of the target dial value
-  if((dialPos * 84) < ((count - 30)|(count + 30))){ // if dial position is less than encoder value
+  if(realPos < ((count - 30)|(count + 30))){ // if dial position is less than encoder value
     mspeed = mspeed - 70;
   }
-  if((dialPos * 84) > ((count - 30)|(count + 30))){ // if dial position is greater than encoder value
+  if(realPos > ((count - 30)|(count + 30))){ // if dial position is greater than encoder value
     mspeed = mspeed - 70;
   }
   //slow down by 140 if within 20 of target dial value
-  if((dialPos * 84) < ((count - 20)|(count + 20))){ // if dial position is less than encoder value
+  if(realPos < ((count - 20)|(count + 20))){ // if dial position is less than encoder value
     mspeed = mspeed - 70;
   }
-  if((dialPos * 84) > ((count - 20)|(count + 20))){ // if dial position is greater than encoder value
+  if(realPos > ((count - 20)|(count + 20))){ // if dial position is greater than encoder value
     mspeed = mspeed - 70;
   }
     //slow down by 235 if within 7 of target dial value
-  if((dialPos * 84) < ((count - 7)|(count + 7))){ // if dial position is less than encoder value
+  if(realPos < ((count - 7)|(count + 7))){ // if dial position is less than encoder value
     mspeed = mspeed - 95;
   }
-  if((dialPos * 84) > ((count - 7)|(count + 7))){ // if dial position is greater than encoder value
+  if(realPos > ((count - 7)|(count + 7))){ // if dial position is greater than encoder value
     mspeed = mspeed - 95;
   }
   // final speed should be 15/255 coming either CW or CCW
