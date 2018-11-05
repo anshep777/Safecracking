@@ -171,24 +171,15 @@ void setHome(){
 
 void slowDown(){
   // slow down by 70 if within 30 of the target dial value
-  if(realPos + homePos < ((count - 30)|(count + 30))){ // if dial position is less than encoder value
-    mspeed = mspeed - 70;
-  }
-  if(realPos + homePos > ((count - 30)|(count + 30))){ // if dial position is greater than encoder value
+  if(realPos + homePos == ((count - 30)|(count + 30))){
     mspeed = mspeed - 70;
   }
   //slow down by 140 if within 20 of target dial value
-  if(realPos + homePos < ((count - 20)|(count + 20))){ // if dial position is less than encoder value
-    mspeed = mspeed - 70;
-  }
-  if(realPos + homePos > ((count - 20)|(count + 20))){ // if dial position is greater than encoder value
+  if(realPos + homePos == ((count - 20)|(count + 20))){
     mspeed = mspeed - 70;
   }
     //slow down by 235 if within 7 of target dial value
-  if(realPos + homePos < ((count - 7)|(count + 7))){ // if dial position is less than encoder value
-    mspeed = mspeed - 95;
-  }
-  if(realPos + homePos > ((count - 7)|(count + 7))){ // if dial position is greater than encoder value
+  if(realPos + homePos == ((count - 7)|(count + 7))){
     mspeed = mspeed - 95;
   }
   // final speed should be 15/255 coming either CW or CCW
@@ -218,7 +209,7 @@ void userMenu(){
   Serial.println(" ");
   while (!Serial.available()) delay(100);
   if(Serial.available()){
-    int incoming = Serial.read();
+    char incoming = Serial.read();
     Serial.print("You Pressed: ");
     Serial.write(incoming);
     Serial.println();
@@ -251,8 +242,8 @@ void userMenu(){
       Serial.println("Address 6 = 203");
       Serial.println("Address 8 = 254");
       while(Serial.available() == false); // wait for user input
-      int incoming = Serial.parseInt();
-      if(incoming %2 == 0 && incoming < 9){
+      int input = Serial.parseInt();
+      if(input %2 == 0 && input < 9){
         Serial.print("Motor speed set to: ");
         EEPROM.get(incoming, mspeed);
         Serial.println(mspeed);
