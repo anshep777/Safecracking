@@ -23,8 +23,7 @@ int realPos;
 int gate;
 int gatestate;
 int mspeed = 255; // motor speed (set to 255 in case no EEPROM value is selected)
-int mspeed2 = mspeed;
-//int eepMotor = 0; // Initial EEPROM address variable for the motor speed
+int mspeed2 = mspeed; //to remember custom motor speeds
 int atHome = 2;
 
 int userSettings(int op, int store = -1){ // op = operation
@@ -61,9 +60,9 @@ void setup() {
 }
 
 void loop() {
+  delay(100);
   gate = digitalRead(11);
   userMenu();
-  delay(100);
 }
 
 void intCountA(){ 
@@ -117,14 +116,6 @@ void intCountB(){
 }
 
 void goToPosition(){ // walks the motor to a position then stops it
-  Serial.print("dialPos: ");
-  Serial.println(dialPos);
-  Serial.print("realPos: ");
-  Serial.println(realPos);
-  Serial.print("homePos: ");
-  Serial.println(homePos);
-  Serial.print("count: ");
-  Serial.println(count);
   if(realPos > count){ // if a higher than encoder value input, turn CW
     CWMotor();
     digitalWrite(6, HIGH);
@@ -132,7 +123,7 @@ void goToPosition(){ // walks the motor to a position then stops it
       slowDown();
     }
   }
-  else if ((realPos - 200 < count) && (realPos + 200 > count)) {
+  else if ((realPos - 70 < count) && (realPos + 70 > count)) {
     Serial.println("Already home!");
     }
   else if(realPos < count){ // if a lower than encoder value input turn CCW
@@ -145,16 +136,14 @@ void goToPosition(){ // walks the motor to a position then stops it
 }
 
 void goHome(){ // uses the photogate to go to set zero point
-  Serial.print("atHome: ");
-  Serial.println(atHome);
-  if (atHome == 3)
-    {  EEPROM.get(10, homePos); // fetches the stored user input for the home location
-       dialPos = homePos;
-       realPos = dialPos * 84;
-       Serial.print("home position should be: ");
-       Serial.println(homePos);
-       goToPosition();
-    }
+  EEPROM.get(10, homePos); // fetches the stored user input for the home location
+  Serial.print("home position should be: ");
+  Serial.println(homePos);
+  if (atHome != 2){
+    dialPos = homePos;
+    realPos = dialPos * 84;
+    goToPosition();
+  }
   else { Serial.println("Already home!"); }
 }
 
@@ -178,17 +167,22 @@ void slowDown(){
   // slow down by 70 if within 30 of the target dial value
   Serial.print("Count: ");
   Serial.println(count);
+  Serial.print("Going to: ");
+  Serial.println(realPos);
   Serial.print("Motor Speed: ");
   Serial.println(mspeed);
-  mspeed = mspeed2;
-  if((count > (realPos - 500)) && (count < (realPos + 500))){
-    mspeed = 30;
-    Serial.println("1");
-    if((count > (realPos - 70)) && (count < (realPos + 70))){
-        stopMotor();
-        Serial.println("3");
-    }
+//  Serial.print("Motor Speed 2: ");
+//  Serial.println(mspeed2);
+  
+  if((count > (realPos - 70)) && (count < (realPos + 70))){
+    stopMotor();
+    Serial.println("stopping");
   }
+  else if((count > (realPos - 1200)) && (count < (realPos + 1200))){
+    mspeed = 30;
+    Serial.println("slowing");
+  }
+  else mspeed = mspeed2;
 }
 
 void CCWMotor(){
@@ -233,7 +227,6 @@ void userMenu(){
       else if(incoming == 'h'){ // go to home location
         Serial.println("Going Home");
         goHome();
-        count = 0;
         atHome = 2;
       }
       else if(incoming == 's'){ // set the home location
@@ -256,11 +249,11 @@ void userMenu(){
           Serial.print("Motor speed set to: ");
           EEPROM.get(input, mspeed);
           Serial.println(mspeed);
-          mspeed2 = mspeed;
         }
         else{
           Serial.println("Incorrect input, even numbers 0 - 8 only");
         }
+        mspeed2 = mspeed;
       }
      Serial.println(" ");
 
