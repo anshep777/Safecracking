@@ -23,7 +23,9 @@ int realPos;
 int gate;
 int gatestate;
 int mspeed = 255; // motor speed (set to 255 in case no EEPROM value is selected)
+int mspeed2 = mspeed;
 //int eepMotor = 0; // Initial EEPROM address variable for the motor speed
+int atHome = 2;
 
 int userSettings(int op, int store = -1){ // op = operation
   
@@ -143,10 +145,17 @@ void goToPosition(){ // walks the motor to a position then stops it
 }
 
 void goHome(){ // uses the photogate to go to set zero point
-  EEPROM.get(10, homePos); // fetches the stored user input for the home location
-  dialPos = homePos;
-  Serial.print("home position should be: ");
-  Serial.println(homePos);
+  Serial.print("atHome: ");
+  Serial.println(atHome);
+  if (atHome == 3)
+    {  EEPROM.get(10, homePos); // fetches the stored user input for the home location
+       dialPos = homePos;
+       realPos = dialPos * 84;
+       Serial.print("home position should be: ");
+       Serial.println(homePos);
+       goToPosition();
+    }
+  else { Serial.println("Already home!"); }
 }
 
 void setHome(){
@@ -169,6 +178,9 @@ void slowDown(){
   // slow down by 70 if within 30 of the target dial value
   Serial.print("Count: ");
   Serial.println(count);
+  Serial.print("Motor Speed: ");
+  Serial.println(mspeed);
+  mspeed = mspeed2;
   if((count > (realPos - 500)) && (count < (realPos + 500))){
     mspeed = 30;
     Serial.println("1");
@@ -216,13 +228,13 @@ void userMenu(){
         Serial.println(dialPos);
         realPos = dialPos * 84;
         goToPosition();
+        atHome = 3;
       }
       else if(incoming == 'h'){ // go to home location
         Serial.println("Going Home");
         goHome();
-        realPos = dialPos * 84;
-        goToPosition();
         count = 0;
+        atHome = 2;
       }
       else if(incoming == 's'){ // set the home location
         Serial.println("Setting Home Location");
@@ -244,6 +256,7 @@ void userMenu(){
           Serial.print("Motor speed set to: ");
           EEPROM.get(input, mspeed);
           Serial.println(mspeed);
+          mspeed2 = mspeed;
         }
         else{
           Serial.println("Incorrect input, even numbers 0 - 8 only");
