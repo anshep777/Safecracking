@@ -60,9 +60,10 @@ void setup() {
 }
 
 void loop() {
-  delay(100);
   gate = digitalRead(11);
   userMenu();
+  delay(100);
+  //EEPROM.get(8, mspeed);
 }
 
 void intCountA(){ 
@@ -124,6 +125,7 @@ void goToPosition(){ // walks the motor to a position then stops it
     }
   }
   else if ((realPos - 70 < count) && (realPos + 70 > count)) {
+    slowDown();
     Serial.println("Already home!");
     }
   else if(realPos < count){ // if a lower than encoder value input turn CCW
@@ -132,6 +134,27 @@ void goToPosition(){ // walks the motor to a position then stops it
     while(realPos < count){
       slowDown();
     }
+  }
+}
+
+void slowDown(){
+  // slow down by 70 if within 30 of the target dial value
+  Serial.print("Count: ");
+  Serial.println(count);
+  Serial.print("Going to: ");
+  Serial.println(realPos);
+  Serial.print("Motor Speed: ");
+  Serial.println(mspeed);
+  Serial.print("Motor Speed 2: ");
+  Serial.println(mspeed2);
+  
+  if((count > (realPos - 70)) && (count < (realPos + 70))){
+    stopMotor();
+    Serial.println("stopping");
+  }
+  else if((count > (realPos - 1200)) && (count < (realPos + 1200))){
+    mspeed = 30;
+    Serial.println("slowing");
   }
 }
 
@@ -163,28 +186,6 @@ void setHome(){
   }
 }
 
-void slowDown(){
-  // slow down by 70 if within 30 of the target dial value
-  Serial.print("Count: ");
-  Serial.println(count);
-  Serial.print("Going to: ");
-  Serial.println(realPos);
-  Serial.print("Motor Speed: ");
-  Serial.println(mspeed);
-//  Serial.print("Motor Speed 2: ");
-//  Serial.println(mspeed2);
-  
-  if((count > (realPos - 70)) && (count < (realPos + 70))){
-    stopMotor();
-    Serial.println("stopping");
-  }
-  else if((count > (realPos - 1200)) && (count < (realPos + 1200))){
-    mspeed = 30;
-    Serial.println("slowing");
-  }
-  else mspeed = mspeed2;
-}
-
 void CCWMotor(){
     analogWrite(motor1, mspeed); // sets one side of the H-bridge high and the other low
     digitalWrite(motor2, LOW);
@@ -213,7 +214,7 @@ void userMenu(){
       Serial.print("You Pressed: ");
       Serial.write(incoming);
       Serial.println();
-  
+      
       if(incoming == 'd'){ // put in a dial position
         Serial.println("Type the dial position to go to");
         while(Serial.available() == false); // wait for user input for dial position
@@ -256,6 +257,5 @@ void userMenu(){
         mspeed2 = mspeed;
       }
      Serial.println(" ");
-
   }
 }
