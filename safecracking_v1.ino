@@ -3,7 +3,7 @@
 /*
  * The user inputs their command into the serial monitor and tells the motor where to turn
  */
-
+int address = 8; //default mspeed address (254)
 int encA = 2;
 int encB = 3;
 int motor1 = 9;
@@ -22,7 +22,7 @@ int homePos = 0; // Zero point is assumed to be zero unless the user changes it
 int realPos;
 int gate;
 int gatestate;
-int mspeed = 255; // motor speed (set to 255 in case no EEPROM value is selected)
+int mspeed = 254; // motor speed (set to 254 in case no EEPROM value is selected)
 int mspeed2 = mspeed; //to remember custom motor speeds
 int atHome = 2;
 
@@ -63,7 +63,7 @@ void loop() {
   gate = digitalRead(11);
   userMenu();
   delay(100);
-  //EEPROM.get(8, mspeed);
+  EEPROM.get(address, mspeed);
 }
 
 void intCountA(){ 
@@ -117,17 +117,16 @@ void intCountB(){
 }
 
 void goToPosition(){ // walks the motor to a position then stops it
-  if(realPos > count){ // if a higher than encoder value input, turn CW
+  if ((count > (realPos - 70)) && (count < (realPos + 70))) {
+    slowDown();
+  }
+  else if(realPos > count){ // if a higher than encoder value input, turn CW
     CWMotor();
     digitalWrite(6, HIGH);
     while(realPos > count){
       slowDown();
     }
   }
-  else if ((realPos - 70 < count) && (realPos + 70 > count)) {
-    slowDown();
-    Serial.println("Already home!");
-    }
   else if(realPos < count){ // if a lower than encoder value input turn CCW
     CCWMotor();
     digitalWrite(6, LOW);
@@ -138,21 +137,19 @@ void goToPosition(){ // walks the motor to a position then stops it
 }
 
 void slowDown(){
-  // slow down by 70 if within 30 of the target dial value
   Serial.print("Count: ");
   Serial.println(count);
   Serial.print("Going to: ");
   Serial.println(realPos);
   Serial.print("Motor Speed: ");
   Serial.println(mspeed);
-  Serial.print("Motor Speed 2: ");
-  Serial.println(mspeed2);
-  
+//  Serial.print("Motor Speed 2: ");
+//  Serial.println(mspeed2);
   if((count > (realPos - 70)) && (count < (realPos + 70))){
     stopMotor();
     Serial.println("stopping");
   }
-  else if((count > (realPos - 1200)) && (count < (realPos + 1200))){
+  else if((count > (realPos - 2500)) && (count < (realPos + 2500))){
     mspeed = 30;
     Serial.println("slowing");
   }
@@ -214,7 +211,6 @@ void userMenu(){
       Serial.print("You Pressed: ");
       Serial.write(incoming);
       Serial.println();
-      
       if(incoming == 'd'){ // put in a dial position
         Serial.println("Type the dial position to go to");
         while(Serial.available() == false); // wait for user input for dial position
@@ -245,10 +241,10 @@ void userMenu(){
         Serial.println("Address 6 = 203");
         Serial.println("Address 8 = 254");
         while(Serial.available() == false); // wait for user input
-        int input = Serial.parseInt();
-        if(input %2 == 0 && input < 9){
+        address = Serial.parseInt();
+        if(address %2 == 0 && address < 9){
           Serial.print("Motor speed set to: ");
-          EEPROM.get(input, mspeed);
+          EEPROM.get(address, mspeed);
           Serial.println(mspeed);
         }
         else{
