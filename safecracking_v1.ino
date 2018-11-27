@@ -63,7 +63,7 @@ void loop() {
   gate = digitalRead(11);
   userMenu();
   delay(100);
-  EEPROM.get(address, mspeed);
+  EEPROM.update(address, mspeed);
 }
 
 void intCountA(){ 
@@ -150,7 +150,7 @@ void slowDown(){
     Serial.println("stopping");
   }
   else if((count > (realPos - 2500)) && (count < (realPos + 2500))){
-    mspeed = 30;
+    EEPROM.update(0, mspeed);
     Serial.println("slowing");
   }
 }
