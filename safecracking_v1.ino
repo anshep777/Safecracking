@@ -6,10 +6,8 @@
 int address = 8; //default mspeed address (254)
 int encA = 2;
 int encB = 3;
-int motor1 = 9;
-int motor2 = 10;
+int motor = 7;
 int timer = 0;
-int button = 7;
 int debounce = 50; // debounce time
 int state = LOW; // current state of output
 bool prev = LOW;
@@ -47,23 +45,24 @@ int userSettings(int op, int store = -1){ // op = operation
 void setup() {
   while(!Serial);
   Serial.begin(9600);
-  pinMode(button, INPUT);
   pinMode(encA, INPUT);
   pinMode(encB, INPUT);
-  pinMode(motor1, OUTPUT);
-  pinMode(motor2, OUTPUT);
+  pinMode(motor, OUTPUT);
   pinMode(dir, OUTPUT);
   pinMode(gate, INPUT);
   attachInterrupt(digitalPinToInterrupt(encA), intCountA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encB), intCountB, CHANGE); 
   userSettings(1);
+  gate = digitalRead(11);
+  if (gate) {
+    Serial.println("Make sure to set the home position!");
+  }
 }
 
 void loop() {
-  gate = digitalRead(11);
   userMenu();
   delay(100);
-  EEPROM.update(address, mspeed);
+  mspeed = mspeed2;
 }
 
 void intCountA(){ 
@@ -117,23 +116,16 @@ void intCountB(){
 }
 
 void goToPosition(){ // walks the motor to a position then stops it
-  if ((count > (realPos - 70)) && (count < (realPos + 70))) {
+  while (!((count > (realPos - 84)) && (count < (realPos + 84)))) {
+    if (count < realPos){ // if a higher than encoder value input, turn CW
+      CWMotor();
+    }
+    else if (count > realPos){ // if a lower than encoder value input turn CCW
+      CCWMotor();
+    }
     slowDown();
   }
-  else if(realPos > count){ // if a higher than encoder value input, turn CW
-    CWMotor();
-    digitalWrite(6, HIGH);
-    while(realPos > count){
-      slowDown();
-    }
-  }
-  else if(realPos < count){ // if a lower than encoder value input turn CCW
-    CCWMotor();
-    digitalWrite(6, LOW);
-    while(realPos < count){
-      slowDown();
-    }
-  }
+  stopMotor();
 }
 
 void slowDown(){
@@ -143,20 +135,14 @@ void slowDown(){
   Serial.println(realPos);
   Serial.print("Motor Speed: ");
   Serial.println(mspeed);
-//  Serial.print("Motor Speed 2: ");
-//  Serial.println(mspeed2);
-  if((count > (realPos - 70)) && (count < (realPos + 70))){
-    stopMotor();
-    Serial.println("stopping");
-  }
-  else if((count > (realPos - 2500)) && (count < (realPos + 2500))){
-    EEPROM.update(0, mspeed);
+  if((count > (realPos - 3000)) && (count < (realPos + 1000))){
+    mspeed = 30;
     Serial.println("slowing");
   }
+  analogWrite(motor, mspeed);
 }
 
 void goHome(){ // uses the photogate to go to set zero point
-  EEPROM.get(10, homePos); // fetches the stored user input for the home location
   Serial.print("home position should be: ");
   Serial.println(homePos);
   if (atHome != 2){
@@ -164,41 +150,62 @@ void goHome(){ // uses the photogate to go to set zero point
     realPos = dialPos * 84;
     goToPosition();
   }
-  else { Serial.println("Already home!"); }
+  else Serial.println("Already home!");
+  atHome = 2; // prevents repeated use of goHome function
+}
+
+void checkGate(){
+  gate = digitalRead(11);
 }
 
 void setHome(){
-  Serial.print("Line up the flag with the sensor");
-  if(!gate){
-    Serial.print("Flag lined up, enter zero point: ");
-    while(Serial.available() == false){ // wait for user input for dial position
-      if(homePos == 'x'){ // press x to exit set home menu
-        break;
-      }
+  atHome = 3; // in case user calls goHome() was called before setHome()
+  checkGate(); //reads photogate, equals 1 if clear & 0 if interupted
+  Serial.println(gate);
+  if(gate){ // when gate = 0 it is obstructed
+    Serial.println("Line up the flag with the sensor");
+    Serial.println("Press x when done");
+    while (!Serial.available()) delay(100);
+    if(Serial.available()){
+      char incoming = Serial.read();
     }
-    homePos = Serial.parseInt(); // homePos is a correction factor to be applied to the goToPosition function
-    userSettings(2, homePos); // updates the stored EEPROM value at address 10
-    Serial.print("Zero point set to: ");
+    checkGate(); // make sure flag is lined up with gate
+    if (gate) { 
+      Serial.println("Flag not lined up correctly. Please try again.");
+      delay(500);
+      setHome();
+    }
+    Serial.println("Flag lined up, enter dial position to be set as home: ");
+    while (!Serial.available()) delay(100); // wait for user input for dial position
+    homePos = Serial.parseInt();
+    Serial.print("Home position set to position ");
     Serial.println(homePos);
+    count = 0;
+    delay(300);
+    Serial.println("Home position set successfully!");
+    checkGate(); // make sure flag is lined up with gate
+    if (gate) { //if gate is blocked after calling goHome(), new homePos set correctly
+      Serial.println("Flag not lined up correctly. Please try again.");
+      setHome();
+    }
   }
-}
-
-void CCWMotor(){
-    analogWrite(motor1, mspeed); // sets one side of the H-bridge high and the other low
-    digitalWrite(motor2, LOW);
+  else Serial.println("Flag already lined up. Nice!"); // if gate is already blocked no need to do shit
 }
 
 void CWMotor(){
-    analogWrite(motor2, mspeed);
-    digitalWrite(motor1, LOW);
+    digitalWrite(dir, HIGH);
+}
+
+void CCWMotor(){
+    digitalWrite(dir, LOW);
 }
 
 void stopMotor(){
-    analogWrite(motor2, 0);
-    digitalWrite(motor1, LOW);
+    analogWrite(motor, 0);
 }
 
 void userMenu(){
+  
   Serial.println("Input Dial Position: d ");
   Serial.println("Stop Motor: x ");
   Serial.println("Go Home: h ");
@@ -224,32 +231,16 @@ void userMenu(){
       else if(incoming == 'h'){ // go to home location
         Serial.println("Going Home");
         goHome();
-        atHome = 2;
       }
       else if(incoming == 's'){ // set the home location
         Serial.println("Setting Home Location");
-        while(Serial.available() == false); // wait for user input for dial position
-        homePos = Serial.parseInt();
         setHome();
       }
       else if(incoming == 'm'){ // select motor speed from the EEPROM
-        Serial.println("Enter EEPROM address to select motor speed: ");
-        Serial.println("EEPROM Address Values");
-        Serial.println("Address 0 = 50");
-        Serial.println("Address 2 = 101");
-        Serial.println("Address 4 = 152");
-        Serial.println("Address 6 = 203");
-        Serial.println("Address 8 = 254");
         while(Serial.available() == false); // wait for user input
-        address = Serial.parseInt();
-        if(address %2 == 0 && address < 9){
-          Serial.print("Motor speed set to: ");
-          EEPROM.get(address, mspeed);
-          Serial.println(mspeed);
-        }
-        else{
-          Serial.println("Incorrect input, even numbers 0 - 8 only");
-        }
+        mspeed = Serial.parseInt();
+        Serial.print("Motor speed set to: ");
+        Serial.println(mspeed);
         mspeed2 = mspeed;
       }
      Serial.println(" ");
