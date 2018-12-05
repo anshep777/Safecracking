@@ -3,42 +3,36 @@
 /*
  * The user inputs their command into the serial monitor and tells the motor where to turn
  */
-int address = 8; //default mspeed address (254)
 int encA = 2;
 int encB = 3;
-int motor = 7;
-int timer = 0;
-int debounce = 50; // debounce time
-int state = LOW; // current state of output
-bool prev = LOW;
-int reading; // current state of the pushbutton
+int motor = 5;
 volatile int count = 0; 
 int dir = 6; // direction indicator (forward/CW = HIGH reverse/CCW = LOW)
-int turnTo;
 int dialPos;
 int homePos = 0; // Zero point is assumed to be zero unless the user changes it
+int realHomePos;
 int realPos;
 int gate;
-int gatestate;
 int mspeed = 254; // motor speed (set to 254 in case no EEPROM value is selected)
 int mspeed2 = mspeed; //to remember custom motor speeds
 int atHome = 2;
 
-int userSettings(int op, int store = -1){ // op = operation
-  
-  if(op == 1 && store == -1){ // if only one argument put in enter the motor speed values
-      // enters motor speed values into the EEPROM
-    int initMotorSpeed = 50; // starts at 50, each entry increases the motor speed by 51/255; making 4 values to choose from
-    for(int loc = 0; loc < 9; loc += 2){ // two bytes of memory allocated to each int
-      EEPROM.put(loc, initMotorSpeed);
-      initMotorSpeed += 51;
-    }
+int userSettings(int op){
+ 
+  if (op == 1){ // store critical values in EEPROM in case of shut down
+    EEPROM.put(6, count);
+    EEPROM.put(8, mspeed);
+    EEPROM.put(10, dialPos);
   }
-
-  if(op == 2){
-    // flag position for the dial
-    EEPROM.put(10, store); // the user's input is stored at address 10 
-    return(store); // returns what value was just stored
+  if (op == 2) {
+    EEPROM.get(6, count);
+    EEPROM.get(8, mspeed);
+    EEPROM.get(10, dialPos);
+  }
+  if (op == 3) {
+    EEPROM.update(6, count);
+    EEPROM.update(8, mspeed);
+    EEPROM.update(10, dialPos);
   }
 }
 
@@ -52,11 +46,11 @@ void setup() {
   pinMode(gate, INPUT);
   attachInterrupt(digitalPinToInterrupt(encA), intCountA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encB), intCountB, CHANGE); 
-  userSettings(1);
   gate = digitalRead(11);
   if (gate) {
     Serial.println("Make sure to set the home position!");
   }
+  userSettings(1); // change this to (2) if the robot ever dun goofs
 }
 
 void loop() {
@@ -126,6 +120,7 @@ void goToPosition(){ // walks the motor to a position then stops it
     slowDown();
   }
   stopMotor();
+  userSettings(3);
 }
 
 void slowDown(){
@@ -135,8 +130,8 @@ void slowDown(){
   Serial.println(realPos);
   Serial.print("Motor Speed: ");
   Serial.println(mspeed);
-  if((count > (realPos - 3000)) && (count < (realPos + 1000))){
-    mspeed = 30;
+  if((count > (realPos - 2100)) && (count < (realPos + 2100))){
+    mspeed = 50;
     Serial.println("slowing");
   }
   analogWrite(motor, mspeed);
@@ -161,35 +156,27 @@ void checkGate(){
 void setHome(){
   atHome = 3; // in case user calls goHome() was called before setHome()
   checkGate(); //reads photogate, equals 1 if clear & 0 if interupted
-  Serial.println(gate);
-  if(gate){ // when gate = 0 it is obstructed
-    Serial.println("Line up the flag with the sensor");
-    Serial.println("Press x when done");
-    while (!Serial.available()) delay(100);
-    if(Serial.available()){
-      char incoming = Serial.read();
-    }
-    checkGate(); // make sure flag is lined up with gate
-    if (gate) { 
-      Serial.println("Flag not lined up correctly. Please try again.");
-      delay(500);
-      setHome();
-    }
-    Serial.println("Flag lined up, enter dial position to be set as home: ");
-    while (!Serial.available()) delay(100); // wait for user input for dial position
-    homePos = Serial.parseInt();
-    Serial.print("Home position set to position ");
-    Serial.println(homePos);
-    count = 0;
-    delay(300);
-    Serial.println("Home position set successfully!");
-    checkGate(); // make sure flag is lined up with gate
-    if (gate) { //if gate is blocked after calling goHome(), new homePos set correctly
-      Serial.println("Flag not lined up correctly. Please try again.");
-      setHome();
-    }
+  mspeed = 50;
+  CWMotor();
+  analogWrite(motor, mspeed);
+  while(gate){ // when gate = 0 it is obstructed
+    checkGate();
   }
-  else Serial.println("Flag already lined up. Nice!"); // if gate is already blocked no need to do shit
+  stopMotor();
+  Serial.println("Enter dial position that corresponds to the position of the flag");
+  while (!Serial.available()) delay(100);
+  homePos = Serial.parseInt();
+  Serial.print("Home position set to ");
+  Serial.println(homePos);
+  dialPos = homePos;
+  realPos = dialPos * 84;  
+  realHomePos = homePos * 84;
+  count = realPos;
+  goToPosition();
+}
+
+void crackMe(){
+    Serial.println("Starting safecracking algorithm!");
 }
 
 void CWMotor(){
@@ -225,6 +212,7 @@ void userMenu(){
         Serial.print("Dial position: ");
         Serial.println(dialPos);
         realPos = dialPos * 84;
+        realPos = 8400 + 2*realHomePos - realPos;
         goToPosition();
         atHome = 3;
       }
