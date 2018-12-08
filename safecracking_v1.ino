@@ -16,6 +16,7 @@ int gate;
 int mspeed = 254; // motor speed (set to 254 in case no EEPROM value is selected)
 int mspeed2 = mspeed; //to remember custom motor speeds
 int atHome = 2;
+int fullTurn = 8400;
 bool orientation = true;
 
 int userSettings(int op){
@@ -214,31 +215,28 @@ void crackMe(){
   Serial.println("Starting safecracking algorithm!");
   int firstPos = homePos; // 
   int secondPos = 0;
-  int fullTurn = 8400;
   delay(200);
   for (int i=secondPos; i>=-99; i-3){ // increments the second position of the dial
     for (int j=firstPos; j<=99; j+3){ // increments the first position of the dial
       resetDial(); // resets the dial to start fresh
-      stopMotor();
-      delay(500);
+      delay(200);
       dialPos = firstPos;
-      realPos = dialPos * 84 + 8400;
+      realPos = dialPos * 84 + fullTurn;
       orientation = true;
       goToPositionSafe();
       Serial.print("First position: ");
       Serial.println(j);
-      break;
+      stopMotor();
+      delay(200);
+      dialPos = secondPos;
+      realPos = dialPos * 84 - fullTurn; // since it's turning CCW count will be negative 
+      orientation = false;
+      goToPositionSafe();
+      Serial.print("Second position: ");
+      Serial.println(i);
+      stopMotor();
+      delay(200);
     }
-    stopMotor();
-//    delay(200);
-    dialPos = secondPos;
-    realPos = dialPos * 84 - 8400; // since it's turning CCW count will be negative 
-    orientation = false;
-    goToPositionSafe();
-    Serial.print("Second position: ");
-    Serial.println(i);
-    delay(200);
-    //pullHandle();
   }
 }
 
@@ -276,7 +274,7 @@ void userMenu(){
         Serial.print("Dial position: ");
         Serial.println(dialPos);
         realPos = dialPos * 84;
-        realPos = 8400 + 2*realHomePos - realPos;
+        realPos = fullTurn + 2*realHomePos - realPos;
         goToPosition();
         atHome = 3;
       }
