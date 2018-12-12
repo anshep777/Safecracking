@@ -316,7 +316,7 @@ void userMenu(){
         Serial.println("Cracking Safe");
         crackMe();
       }
-      else if(incoming == 'p'){ // crack safe
+      else if(incoming == 'p'){ // test handle puller
       Serial.println("Testing out handle puller");
         servoOne.write(90);
         delay(500);
