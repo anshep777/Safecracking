@@ -19,6 +19,7 @@ int atHome = 2;
 int fullTurn = 8400;
 bool orientation = true;
 Servo servo;
+Servo servo2;
 
 int userSettings(int op){
  
@@ -50,6 +51,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encA), intCountA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encB), intCountB, CHANGE); 
   servo.attach(9);
+  servo2.attach(10);
   gate = digitalRead(11);
   if (gate) {
     Serial.println("Make sure to set the home position!");
@@ -318,9 +320,11 @@ void userMenu(){
       }
       else if(incoming == 'p'){ // test handle puller
       Serial.println("Testing out handle puller");
-        servoOne.write(90);
+        servo.write(90);
+        servo2.write(0);
         delay(500);
-        servoOne.write(0);
+        servo.write(0);
+        servo2.write(90);
         delay(500);
       }
      Serial.println(" ");
