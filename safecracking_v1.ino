@@ -1,5 +1,5 @@
 #include <EEPROM.h>
-
+#include <Servo.h>
 /*
  * The user inputs their command into the serial monitor and tells the motor where to turn
  */
@@ -18,6 +18,7 @@ int mspeed2 = mspeed; //to remember custom motor speeds
 int atHome = 2;
 int fullTurn = 8400;
 bool orientation = true;
+Servo servo;
 
 int userSettings(int op){
  
@@ -48,6 +49,7 @@ void setup() {
   pinMode(gate, INPUT);
   attachInterrupt(digitalPinToInterrupt(encA), intCountA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encB), intCountB, CHANGE); 
+  servo.attach(9);
   gate = digitalRead(11);
   if (gate) {
     Serial.println("Make sure to set the home position!");
@@ -112,7 +114,7 @@ void intCountB(){
 }
 
 void goToPosition(){ // walks the motor to a position then stops it
-  while (!((count > (realPos - 84)) && (count < (realPos + 84)))) {
+  while (!((count > (realPos - 50)) && (count < (realPos + 50)))) {
     if (count < realPos){ // if a higher than encoder value input, turn CW
       CWMotor();
     }
@@ -126,7 +128,7 @@ void goToPosition(){ // walks the motor to a position then stops it
 }
 
 void goToPositionSafe(){ // walks the motor to a position then stops it
-  while (!((count > (realPos - 84)) && (count < (realPos + 84)))) {
+  while (!((count > (realPos - 50)) && (count < (realPos + 50)))) {
     if (orientation){ // if a higher than encoder value input, turn CW
       CWMotor();
     }
@@ -146,11 +148,13 @@ void slowDown(){
 //  Serial.println(realPos);
 //  Serial.print("Motor Speed: ");
 //  Serial.println(mspeed);
+  if((count > (realPos - 400)) && (count < (realPos + 400))){
+    mspeed = 5;
+  }
   if((count > (realPos - 2100)) && (count < (realPos + 2100))){
     mspeed = 50;
 //    Serial.println("slowing");
   }
-  analogWrite(motor, mspeed);
 }
 
 void goHome(){ // uses the photogate to go to set zero point
@@ -174,7 +178,6 @@ void setHome(){
   checkGate(); //reads photogate, equals 1 if clear & 0 if interupted
   mspeed = 50;
   CWMotor();
-  analogWrite(motor, mspeed);
   while(gate){ // when gate = 0 it is obstructed
     checkGate();
   }
@@ -184,68 +187,78 @@ void setHome(){
   homePos = Serial.parseInt();
   Serial.print("Home position set to ");
   Serial.println(homePos);
-  dialPos = homePos;
-  realPos = dialPos * 84;  
+  while (count >= 8400) count = count - 8400;
   realHomePos = homePos * 84;
-  count = realPos;
-  goToPosition();
+  count = realHomePos;
 }
 
 void pullHandle();
 
 void resetDial(){
-  mspeed = 150;
+  checkGate(); //reads photogate, equals 1 if clear & 0 if interupted
+  mspeed = 50;
   CWMotor();
-  analogWrite(motor, mspeed);
-  delay(200);
-  for (int k=1; k<=4; k++){
+  while(gate){ // when gate = 0 it is obstructed
     checkGate();
-    while(gate){ // when gate = 0 it is obstructed
-      checkGate();
-    }
-    delay(10);
   }
   stopMotor();
-  dialPos = homePos;
-  realPos = dialPos * 84;  
-  count = realPos;
+  while (count >= 8400) count = count - 8400;
+  realHomePos = count;
 }
 
 void crackMe(){
   Serial.println("Starting safecracking algorithm!");
-  int firstPos = homePos; // 
+  int firstPos = homePos;
   int secondPos = 0;
-  delay(200);
-  for (int i=secondPos; i>=-99; i-3){ // increments the second position of the dial
-    for (int j=firstPos; j<=99; j+3){ // increments the first position of the dial
-      resetDial(); // resets the dial to start fresh
-      delay(200);
-      dialPos = firstPos;
-      realPos = dialPos * 84 + fullTurn;
+  for (int i=secondPos; i<=99; i=i+3){ // increments the second position of the dial
+    for (int j=firstPos; j<=99; j=j+3){ // increments the first position of the dial
+      mspeed = 254;
+      realPos = 2 * fullTurn;
+      goToPosition();
+      delay(100);
+      checkGate(); //reads photogate, equals 1 if clear & 0 if interupted
+      mspeed = 50;
+      CWMotor();
+      while(gate){ // when gate = 0 it is obstructed
+        checkGate();
+      }
+      stopMotor();
+      count = realHomePos;
+      Serial.print("Count after reset: ");
+      Serial.println(count);
+      delay(100);
+      mspeed = 254;
       orientation = true;
+      realPos = 2*realHomePos + fullTurn - j * 84;
       goToPositionSafe();
       Serial.print("First position: ");
       Serial.println(j);
       stopMotor();
-      delay(200);
-      dialPos = secondPos;
-      realPos = dialPos * 84 - fullTurn; // since it's turning CCW count will be negative 
+      Serial.print("Count after first turn: ");
+      Serial.println(count);
+      delay(500);
+      mspeed = 254;
       orientation = false;
+      realPos = realHomePos - i * 84 - fullTurn;
       goToPositionSafe();
       Serial.print("Second position: ");
       Serial.println(i);
       stopMotor();
-      delay(200);
+      Serial.print("Count after second turn: ");
+      Serial.println(count);
+      delay(500);
     }
   }
 }
 
 void CWMotor(){
   digitalWrite(dir, HIGH);
+  analogWrite(motor, mspeed);
 }
 
 void CCWMotor(){
   digitalWrite(dir, LOW);
+  analogWrite(motor, mspeed);
 }
 
 void stopMotor(){
@@ -255,11 +268,11 @@ void stopMotor(){
 void userMenu(){
   
   Serial.println("Input Dial Position: d ");
-  Serial.println("Stop Motor: x ");
   Serial.println("Go Home: h ");
   Serial.println("Set Home Location: s ");
   Serial.println("Select Motor Speed Value: m");
   Serial.println("Crack Safe: x");
+  Serial.println("Test handle puller: p");
   Serial.println(" ");
   while (!Serial.available()) delay(100);
     if(Serial.available()){
@@ -274,8 +287,14 @@ void userMenu(){
         Serial.print("Dial position: ");
         Serial.println(dialPos);
         realPos = dialPos * 84;
-        realPos = fullTurn + 2*realHomePos - realPos;
+        orientation = true;
+        if (dialPos > 0){
+          realPos = fullTurn + 2*realHomePos - realPos;
+          orientation = false;
+        }
         goToPosition();
+        Serial.print("Final count: ");
+        Serial.println(count);
         atHome = 3;
       }
       else if(incoming == 'h'){ // go to home location
@@ -296,6 +315,13 @@ void userMenu(){
       else if(incoming == 'x'){ // crack safe
         Serial.println("Cracking Safe");
         crackMe();
+      }
+      else if(incoming == 'p'){ // crack safe
+      Serial.println("Testing out handle puller");
+        servoOne.write(90);
+        delay(500);
+        servoOne.write(0);
+        delay(500);
       }
      Serial.println(" ");
   }
